@@ -77,13 +77,21 @@ class PerevalSerializer(WritableNestedModelSerializer):
         return pereval
 
     def validate(self, attrs):
-        user = self.instance.user
         user_data = attrs.get('user')
 
-        if user.email != user_data.get('email') or user.fam != user_data.get('fam') or \
-            user.name != user_data.get('name') or user.otc != user_data.get('otc') or \
-            user.phone != user_data.get('phone'):
-            raise ValidationError("User information cannot be changed.")
+        if self.instance:
+            user = self.instance.user
+        else:
+            try:
+                user = User.objects.get(email=user_data.get('email'))
+            except User.DoesNotExist:
+                user = None
+
+        if user is not None:
+            if user.fam != user_data.get('fam') or \
+                    user.name != user_data.get('name') or user.otc != user_data.get('otc') or \
+                    user.phone != user_data.get('phone'):
+                raise ValidationError("User information cannot be changed.")
 
         super().validate(attrs)
 
