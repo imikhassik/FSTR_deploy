@@ -14,6 +14,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class CoordsSerializer(serializers.ModelSerializer):
+    height = serializers.IntegerField(default=0)
+
     class Meta:
         model = Coords
         fields = '__all__'
