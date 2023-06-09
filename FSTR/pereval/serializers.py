@@ -1,6 +1,4 @@
 from rest_framework import serializers
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 
@@ -41,11 +39,12 @@ class PerevalSerializer(WritableNestedModelSerializer):
 
     class Meta:
         model = Pereval
-        fields = ['status', 'beauty_title', 'title', 'other_titles', 'connect',
+        fields = ['pk', 'status', 'beauty_title', 'title', 'other_titles', 'connect',
                   'add_time', 'user', 'coords', 'level', 'images']
-        read_only_fields = ['status', 'add_time']
+        read_only_fields = ['pk', 'status', 'add_time']
 
     def get_fields(self):
+        """ Fields to display in request body """
         fields = super().get_fields()
         request = self.context.get('request')
 
@@ -64,22 +63,28 @@ class PerevalSerializer(WritableNestedModelSerializer):
         except User.DoesNotExist:
             user = User.objects.create(**user_data)
 
-        coords_data = validated_data.pop('coords')
-        coords = Coords.objects.create(**coords_data)
+        try:
+            coords_data = validated_data.pop('coords')
+            coords = Coords.objects.create(**coords_data)
 
-        level_data = validated_data.pop('level')
-        level = Level.objects.create(**level_data)
+            level_data = validated_data.pop('level')
+            level = Level.objects.create(**level_data)
 
-        images_data = validated_data.pop('images', [])
-        pereval = Pereval.objects.create(**validated_data, user=user, coords=coords, level=level)
+            images_data = validated_data.pop('images')
+            pereval = Pereval.objects.create(**validated_data, user=user, coords=coords, level=level)
 
-        for image_data in images_data:
-            Image.objects.create(pereval=pereval, **image_data)
+            for image_data in images_data:
+                Image.objects.create(pereval=pereval, **image_data)
+
+        except KeyError:
+            raise ValidationError("Data is missing")
 
         return pereval
 
     def validate(self, attrs):
         user_data = attrs.get('user')
+        if not user_data:
+            raise ValidationError("User data is missing.")
 
         if self.instance:
             user = self.instance.user
@@ -98,10 +103,3 @@ class PerevalSerializer(WritableNestedModelSerializer):
         super().validate(attrs)
 
         return attrs
-
-    def handle_exception(self, exc):
-        if isinstance(exc, ValidationError):
-            response_data = {"state": 0, "message": str(exc)}
-            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
-        return super().handle_exception(exc)
